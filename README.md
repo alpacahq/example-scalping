@@ -1,4 +1,4 @@
-# Concurrent Scalp Algo
+# Concurrent Scalping Algo
 
 This python script is a working example to execute scalping trading algorithm for
 [Alpaca API](https://alpaca.markets). This algorithm uses real time order updates
