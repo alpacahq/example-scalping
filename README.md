@@ -1,7 +1,8 @@
 # Concurrent Scalping Algo
 
-This python script is a working example to execute scalping trading algorithm for
-[Alpaca API](https://alpaca.markets). This algorithm uses real time order updates
+This python script is a working example to execute 
+[scalping trading](https://www.investopedia.com/articles/trading/05/scalping.asp) 
+algorithm for [Alpaca API](https://alpaca.markets). This algorithm uses real time order updates
 as well as minute level bar streaming from Polygon via Websockets (see the
 [document](https://docs.alpaca.markets/market-data/#consolidated-market-data) for
 Polygon data access).
