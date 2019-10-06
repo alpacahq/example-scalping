@@ -2,11 +2,12 @@
 
 This python script is a working example to execute scalping trading algorithm for
 [Alpaca API](https://alpaca.markets). This algorithm uses real time order updates
-as well as minute level bar streaming from Polygon via Websockets (see
+as well as minute level bar streaming from Polygon via Websockets (see the
 [document](https://docs.alpaca.markets/market-data/#consolidated-market-data) for
 Polygon data access).
 One of the contributions of this example is to demonstrate how to handle
-multiple stocks concurrently as independent routine using Python's asyncio.
+multiple stocks concurrently as independent routine using Python's
+[asyncio](https://docs.python.org/3/library/asyncio.html).
 
 The strategy holds positions for very short period and exits positions quickly, so
 you have to have more than $25k equity in your account due to the Pattern Day Trader rule,
@@ -21,7 +22,7 @@ Please install it using pip
 $ pip3 install alpaca-trade-api
 ```
 
-or use pipenv using `Pipfile` in this directory.
+or use [pipenv](https://github.com/pypa/pipenv) using `Pipfile` in this directory.
 
 ```sh
 $ pipenv install
@@ -39,15 +40,17 @@ simple moving average as the buy signal.
 
 
 ## Strategy
-The algorithm idea is to buy the stock upon the buy signal (MA20/price cross over in 1-minute bar) as
-much as `lot` amount of dollar, then immediately sell the position at or above the entry price.
+The algorithm idea is to buy the stock upon the buy signal (20 minute
+[moving average crossover](https://www.investopedia.com/articles/active-trading/052014/how-use-moving-average-buy-stocks.asp)) 
+as much as `lot` amount of dollar, then immediately sell the position at or above the entry price.
+The assumption is that the market is bouncing upward when this signal occurs in a short period of time.
 The buy signal is expremely simple, but what this strategy achieves is the quick reaction to
-exit the position as soon as the buy order fills. There are reasonable chances that you can sell
-the positions at the better prices than your entry within the short period of time. We send
-limit order at the last trade or entry price whichever the higher to avoid unnecessary slippage.
+exit the position as soon as the buy order fills. There are reasonable probabilities that you can sell
+the positions at the better prices than or the same price as your entry within the small window. We send
+limit order at the last trade or position entry price whichever the higher to avoid unnecessary slippage.
 
 The buy order is canceled after 2 minutes if it does not fill, assuming the signal is not
-effective anymore. This could happen in a fast-moving market situation. Sells are left
+effective anymore. This could happen in a fast-moving market situation. The sell order is left
 indifinitely until it fills, but this may cause loss more than the accumulated profit depending
 on the market situation. This is where you can improve the risk control beyond this example.
 
