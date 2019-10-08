@@ -65,7 +65,7 @@ class ScalpAlgo:
         order = self._order
         if (order is not None and
             order.side == 'buy' and now -
-                order.submitted_at > pd.Timedelta('2 min')):
+                pd.Timestamp(order.submitted_at, tz='America/New_York') > pd.Timedelta('2 min')):
             last_price = self._api.polygon.last_trade(self._symbol).price
             self._l.info(
                 f'canceling missed buy order {order.id} at {order.limit_price} '
