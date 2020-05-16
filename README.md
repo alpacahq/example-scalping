@@ -13,7 +13,7 @@ multiple stocks concurrently as independent routine using Python's
 The strategy holds positions for very short period and exits positions quickly, so
 you have to have more than $25k equity in your account due to the Pattern Day Trader rule,
 to run this example. For more information about PDT rule, please read the
-[document](https://docs.alpaca.markets/user-protections/#the-rule).
+[document](https://support.alpaca.markets/hc/en-us/articles/360012203032-Pattern-Day-Trader).
 
 ## Dependency
 This script needs latest [Alpaca Python SDK](https://github.com/alpacahq/alpaca-trade-api-python).
@@ -35,7 +35,7 @@ $ pipenv install
 $ python main.py --lot=2000 TSLA FB AAPL
 ```
 
-You can specify as many symbols as you want.  The script is designd to kick off while market
+You can specify as many symbols as you want.  The script is designed to kick off while market
 is open. Nothing would happen until 21 minutes from the market open as it relies on the
 simple moving average as the buy signal.
 
@@ -45,7 +45,7 @@ The algorithm idea is to buy the stock upon the buy signal (20 minute
 [moving average crossover](https://www.investopedia.com/articles/active-trading/052014/how-use-moving-average-buy-stocks.asp)) 
 as much as `lot` amount of dollar, then immediately sell the position at or above the entry price.
 The assumption is that the market is bouncing upward when this signal occurs in a short period of time.
-The buy signal is expremely simple, but what this strategy achieves is the quick reaction to
+The buy signal is extremely simple, but what this strategy achieves is the quick reaction to
 exit the position as soon as the buy order fills. There are reasonable probabilities that you can sell
 the positions at the better prices than or the same price as your entry within the small window. We send
 limit order at the last trade or position entry price whichever the higher to avoid unnecessary slippage.
@@ -66,7 +66,7 @@ This example heavily relies on Python's asyncio. Although the thread is single, 
 multiple symbols concurrently using this async loop.
 
 We keep track of each symbol state in a separate `ScalpAlgo` class instance. That way,
-everything stays simple without complex data struture and easy to read. The `main()`
+everything stays simple without complex data structure and easy to read. The `main()`
 function creates the algo instance for each symbol and creates streaming object
 to listen the bar events. As soon as we receive a minute bar, we invoke event handler
 for each symbol.
