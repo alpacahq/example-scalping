@@ -2,14 +2,19 @@ import alpaca_trade_api as alpaca
 import asyncio
 import pandas as pd
 import sys
-
 import logging
+
+from alpaca_trade_api import Stream
+from alpaca_trade_api.common import URL
+from alpaca_trade_api.rest import TimeFrame
 
 logger = logging.getLogger()
 
+ALPACA_API_KEY = "<key_id>"
+ALPACA_SECRET_KEY = "<secret_key>"
+
 
 class ScalpAlgo:
-
     def __init__(self, api, symbol, lot):
         self._api = api
         self._symbol = symbol
@@ -21,8 +26,16 @@ class ScalpAlgo:
         market_open = now.replace(hour=9, minute=30)
         today = now.strftime('%Y-%m-%d')
         tomorrow = (now + pd.Timedelta('1day')).strftime('%Y-%m-%d')
-        data = api.polygon.historic_agg_v2(
-            symbol, 1, 'minute', today, tomorrow, unadjusted=False).df
+        while 1:
+            # at inception this results sometimes in api errors. this will work
+            # around it. feel free to remove it once everything is stable
+            try:
+                data = api.get_bars(symbol, TimeFrame.Minute, today, tomorrow,
+                                    adjustment='raw').df
+                break
+            except:
+                # make sure we get bars
+                pass
         bars = data[market_open:]
         self._bars = bars
 
@@ -66,7 +79,7 @@ class ScalpAlgo:
         if (order is not None and
             order.side == 'buy' and now -
                 pd.Timestamp(order.submitted_at, tz='America/New_York') > pd.Timedelta('2 min')):
-            last_price = self._api.polygon.last_trade(self._symbol).price
+            last_price = self._api.get_last_trade(self._symbol).price
             self._l.info(
                 f'canceling missed buy order {order.id} at {order.limit_price} '
                 f'(current price = {last_price})')
@@ -99,10 +112,10 @@ class ScalpAlgo:
             'low': bar.low,
             'close': bar.close,
             'volume': bar.volume,
-        }, index=[bar.start]))
+        }, index=[bar.timestamp]))
 
         self._l.info(
-            f'received bar start = {bar.start}, close = {bar.close}, len(bars) = {len(self._bars)}')
+            f'received bar start = {bar.timestamp}, close = {bar.close}, len(bars) = {len(self._bars)}')
         if len(self._bars) < 21:
             return
         if self._outofmarket():
@@ -146,7 +159,7 @@ class ScalpAlgo:
                 self._l.warn(f'unexpected state for {event}: {self._state}')
 
     def _submit_buy(self):
-        trade = self._api.polygon.last_trade(self._symbol)
+        trade = self._api.get_last_trade(self._symbol)
         amount = int(self._lot / trade.price)
         try:
             order = self._api.submit_order(
@@ -177,7 +190,7 @@ class ScalpAlgo:
             params['type'] = 'market'
         else:
             current_price = float(
-                self._api.polygon.last_trade(
+                self._api.get_last_trade(
                     self._symbol).price)
             cost_basis = float(self._position.avg_entry_price)
             limit_price = max(cost_basis + 0.01, current_price)
@@ -202,8 +215,13 @@ class ScalpAlgo:
 
 
 def main(args):
-    api = alpaca.REST()
-    stream = alpaca.StreamConn()
+    stream = Stream(ALPACA_API_KEY,
+                    ALPACA_SECRET_KEY,
+                    base_url=URL('https://paper-api.alpaca.markets'),
+                    data_feed='iex')  # <- replace to SIP for PRO subscription
+    api = alpaca.REST(key_id=ALPACA_API_KEY,
+                    secret_key=ALPACA_SECRET_KEY,
+                    base_url="https://paper-api.alpaca.markets")
 
     fleet = {}
     symbols = args.symbols
@@ -211,17 +229,20 @@ def main(args):
         algo = ScalpAlgo(api, symbol, lot=args.lot)
         fleet[symbol] = algo
 
-    @stream.on(r'^AM')
-    async def on_bars(conn, channel, data):
+    async def on_bars(data):
         if data.symbol in fleet:
             fleet[data.symbol].on_bar(data)
 
-    @stream.on(r'trade_updates')
-    async def on_trade_updates(conn, channel, data):
+    for symbol in symbols:
+        stream.subscribe_bars(on_bars, symbol)
+
+    async def on_trade_updates(data):
         logger.info(f'trade_updates {data}')
         symbol = data.order['symbol']
         if symbol in fleet:
             fleet[symbol].on_order_update(data.event, data.order)
+
+    stream.subscribe_trade_updates(on_trade_updates)
 
     async def periodic():
         while True:
@@ -233,13 +254,10 @@ def main(args):
             for symbol, algo in fleet.items():
                 pos = [p for p in positions if p.symbol == symbol]
                 algo.checkup(pos[0] if len(pos) > 0 else None)
-    channels = ['trade_updates'] + [
-        'AM.' + symbol for symbol in symbols
-    ]
 
-    loop = stream.loop
+    loop = asyncio.get_event_loop()
     loop.run_until_complete(asyncio.gather(
-        stream.subscribe(channels),
+        stream._run_forever(),
         periodic(),
     ))
     loop.close()
