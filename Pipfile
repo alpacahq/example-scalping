@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-alpaca-trade-api = ">=0.39"
+alpaca-trade-api = ">=1.0.1"
 websockets = "*"
 
 [dev-packages]
