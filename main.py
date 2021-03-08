@@ -51,6 +51,7 @@ class ScalpAlgo:
         if self._position is not None:
             if self._order is None:
                 self._state = 'TO_SELL'
+                self._submit_sell() # we should trigger sell, otherwise the stock is stuck in TO_SELL state until EOD
             else:
                 self._state = 'SELL_SUBMITTED'
                 if self._order.side != 'sell':
@@ -78,7 +79,7 @@ class ScalpAlgo:
         order = self._order
         if (order is not None and
             order.side == 'buy' and now -
-                pd.Timestamp(order.submitted_at, tz='America/New_York') > pd.Timedelta('2 min')):
+                pd.Timestamp(order.submitted_at).tz_convert('America/New_York') > pd.Timedelta('2 min')):
             last_price = self._api.get_last_trade(self._symbol).price
             self._l.info(
                 f'canceling missed buy order {order.id} at {order.limit_price} '
