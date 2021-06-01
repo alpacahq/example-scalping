@@ -1,6 +1,7 @@
 import alpaca_trade_api as alpaca
 import asyncio
 import pandas as pd
+import pytz
 import sys
 import logging
 
@@ -78,7 +79,7 @@ class ScalpAlgo:
         order = self._order
         if (order is not None and
             order.side == 'buy' and now -
-                pd.Timestamp(order.submitted_at, tz='America/New_York') > pd.Timedelta('2 min')):
+                order.submitted_at.tz_convert(tz='America/New_York') > pd.Timedelta('2 min')):
             last_price = self._api.get_last_trade(self._symbol).price
             self._l.info(
                 f'canceling missed buy order {order.id} at {order.limit_price} '
@@ -112,10 +113,10 @@ class ScalpAlgo:
             'low': bar.low,
             'close': bar.close,
             'volume': bar.volume,
-        }, index=[bar.timestamp]))
+        }, index=[pd.Timestamp(bar.timestamp, tz=pytz.UTC)]))
 
         self._l.info(
-            f'received bar start = {bar.timestamp}, close = {bar.close}, len(bars) = {len(self._bars)}')
+            f'received bar start: {pd.Timestamp(bar.timestamp)}, close: {bar.close}, len(bars): {len(self._bars)}')
         if len(self._bars) < 21:
             return
         if self._outofmarket():
