@@ -4,7 +4,7 @@ This python script is a working example to execute
 [scalping trading](https://www.investopedia.com/articles/trading/05/scalping.asp) 
 algorithm for [Alpaca API](https://alpaca.markets). This algorithm uses real time order updates
 as well as minute level bar streaming from Polygon via Websockets (see the
-[document](https://docs.alpaca.markets/market-data/#consolidated-market-data) for
+[document](https://alpaca.markets/docs/trading-on-alpaca/market-data/#unlimited-plan) for
 Polygon data access).
 One of the contributions of this example is to demonstrate how to handle
 multiple stocks concurrently as independent routine using Python's
