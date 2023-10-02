@@ -15,6 +15,16 @@ you have to have more than $25k equity in your account due to the Pattern Day Tr
 to run this example. For more information about PDT rule, please read the
 [document](https://support.alpaca.markets/hc/en-us/articles/360012203032-Pattern-Day-Trader).
 
+## Table of Contents
+1. [Dependency](#dependency)
+2. [Usage](#usage)
+3. [Strategy](#strategy)
+4. [Implementation](#implementation)
+5. [Algo Instance and State Management](#algo-instance-and-state-management)
+6. [Event Handlers](#event-handlers)
+7. [Note](#note)
+8. [Customization](#customization)
+
 ## Dependency
 This script needs latest [Alpaca Python SDK](https://github.com/alpacahq/alpaca-trade-api-python).
 Please install it using pip
@@ -29,16 +39,30 @@ or use [pipenv](https://github.com/pypa/pipenv) using `Pipfile` in this director
 $ pipenv install
 ```
 
+Afterwards, make sure that all python dependencies are met. 
+These can be installed with 
+```sh
+$ pip install -r requirements.txt
+```
 ## Usage
 
 ```sh
 $ python main.py --lot=2000 TSLA FB AAPL
 ```
 
-You can specify as many symbols as you want.  The script is designed to kick off while market
+You can specify as many symbols as you want. The script is designed to kick off while market
 is open. Nothing would happen until 21 minutes from the market open as it relies on the
 simple moving average as the buy signal.
 
+For safety purposes, we strongly recommend that your instance of this script does not include your API keys in plain text.
+That is, they should be stored seperately in a .env file and accessed using the `os` module.
+These are the lines that should be replaced:
+    
+```py
+    ALPACA_API_KEY = "<key_id>"
+    ALPACA_SECRET_KEY = "<secret_key>"
+```
+However, if you are using paper trading keys, they are relatively safe to use live. 
 
 ## Strategy
 The algorithm idea is to buy the stock upon the buy signal (20 minute
@@ -58,7 +82,51 @@ on the market situation. This is where you can improve the risk control beyond t
 The buy signal is calculated as soon as a minute bar arrives, which typically happen about 4 seconds
 after the top of every minute (this is Polygon's behavior for minute bar streaming).
 
-This example liquidates all watching positions with market order at the end of market hours (03:55pm ET).
+If you want to customize any part of the algorithm, it is crucial that the 'limit' parameter of the buy order remains so. In such a fast moving market (which is what the scalping algorithm targets, a market order could be filled at a price that is far from the last trade price. This could result in a loss. This slippage, compounded over time, could result in a significant loss.)
+```py
+def _submit_buy(self):
+        trade = self._api.get_last_trade(self._symbol)
+        amount = int(self._lot / trade.price)
+        try:
+            order = self._api.submit_order(
+                symbol=self._symbol,
+                side='buy',
+                type='limit',
+                qty=amount,
+                time_in_force='day',
+                limit_price=trade.price,
+            )
+        except Exception as e:
+            self._l.info(e)
+            self._transition('TO_BUY')
+            return
+
+        self._order = order
+        self._l.info(f'submitted buy {order}')
+        self._transition('BUY_SUBMITTED')
+```
+The same applies to sell functions, in all scenarios except for the liquidation of positions at the end of the day, or in bailout situations.
+
+This example liquidates all watching positions with market order at the end of market hours (03:55pm ET), as seen here:
+```py
+    def checkup(self):
+        '''periodic job to check the status'''
+        if self._state == 'TO_BUY':
+            self._submit_buy()
+        elif self._state == 'BUY_SUBMITTED':
+            self._check_buy()
+        elif self._state == 'TO_SELL':
+            self._submit_sell()
+        elif self._state == 'SELL_SUBMITTED':
+            self._check_sell()
+        elif self._state == 'DONE':
+            return
+
+        # liquidate all positions at the end of the day
+        if self._clock.is_open and self._clock.next_close.hour == 15 and self._clock.next_close.minute == 55:
+            self._liquidate_all()
+            self._transition('DONE')
+```
 
 
 ## Implementation
