@@ -1,0 +1,5 @@
+alpaca_trade_api
+asyncio
+pandas
+pytz
+logging
